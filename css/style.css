@@ -1,69 +1,26 @@
-:root{
-  --bg:#0f1115;
-  --accent:#d9b08c;
-}
-*{box-sizing:border-box}
-html,body{
-  height:100%;
-  margin:0;
-  background:linear-gradient(180deg,#0b0c0e 0%, #1b1c1f 100%);
-  color:#fff;
-  font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
-.ui{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 18px;
-  max-width:1200px;
-  margin:10px auto 0;
-}
-h1{font-size:20px;margin:0;color:var(--accent)}
-.controls{display:flex;gap:8px;align-items:center}
-button{
-  background:#222;border:1px solid #333;color:#fff;padding:8px 12px;border-radius:8px;
-  cursor:pointer;font-size:14px;
-}
-button:hover{filter:brightness(1.1)}
-.scoreboard{display:flex;gap:12px;align-items:center}
-#game-wrap{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:18px;
-  max-width:1200px;
-  margin:8px auto;
-}
-canvas{
-  background:linear-gradient(#6b6b6b,#454545);
-  border-radius:8px;
-  box-shadow:0 8px 30px rgba(0,0,0,0.6), inset 0 -40px 80px rgba(0,0,0,0.3);
-  width:100%; max-width:960px; height:auto;
-  display:block;
+body {
+  text-align: center;
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
 }
 
-/* overlay for start / game over */
-.overlay{
-  position:fixed; left:0; right:0; top:0; bottom:0;
-  display:flex; align-items:center; justify-content:center;
-  pointer-events:none;
+#game-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
-#overlayContent{
-  pointer-events:auto;
-  background:rgba(6,6,6,0.8);
-  color:#fff; padding:20px; border-radius:12px;
-  text-align:center; max-width:520px;
-  box-shadow:0 10px 40px rgba(0,0,0,0.6);
-  display:none;
+
+canvas {
+  border: 3px solid #fff;
+  background: url("assets/background.png") repeat-x;
+  background-size: cover;
 }
-#overlayContent h2{margin:0 0 8px}
-#overlayContent p{margin:6px 0 12px}
-.small{font-size:13px;color:#ddd}
-.footer-note{margin-top:8px;font-size:12px;color:#aaa}
-@media (max-width:640px){
-  .ui{flex-direction:column;align-items:flex-start;gap:6px}
-  #overlayContent{width:90%}
+
+#ending {
+  margin-top: 20px;
+  padding: 20px;
+  background: #222;
+  border: 2px solid #fff;
 }
+
