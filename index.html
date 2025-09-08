@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Top Bar -->
   <div class="top">
     <h1>Hog Rider Runner ⚔️ — Ultimate</h1>
     <div class="controls">
@@ -16,15 +17,18 @@
     </div>
   </div>
 
+  <!-- Game Canvas -->
   <div id="game-area">
     <canvas id="gameCanvas" width="960" height="360"></canvas>
   </div>
 
+  <!-- HUD -->
   <div id="hud">
     <div id="scoreText">Score: 0 • High: 0</div>
     <div id="tips">Space / Up / W = Jump • Down / S = Duck • Click / Tap canvas to jump</div>
   </div>
 
+  <!-- Side Panel / Leaderboard -->
   <div class="sidepanel">
     <h3>Leaderboard</h3>
     <div id="leaderboard">
@@ -40,6 +44,7 @@
     </div>
   </div>
 
+  <!-- Overlay / Start Screen -->
   <div id="overlay" class="overlay">
     <div id="overlayBox">
       <h2 id="overlayTitle">Hog Rider Runner</h2>
@@ -53,6 +58,7 @@
     </div>
   </div>
 
-<script src="game.js"></script>
+  <!-- Script -->
+  <script src="game.js"></script>
 </body>
 </html>
