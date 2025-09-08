@@ -1,34 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hog Rider Runner — War Run</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hog Rider Runner ⚔️</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ui">
-    <h1>Hog Rider Runner ⚔️</h1>
-    <div class="controls">
-      <button id="startBtn">Start Game</button>
-      <button id="pauseBtn" style="display:none">Pause</button>
-      <button id="muteBtn">🔊</button>
-    </div>
-    <div class="scoreboard">
-      <span id="scoreLabel">Score: 0</span>
-      <span id="highLabel">High: 0</span>
-    </div>
-    <div id="instructions">
-      <p>Space / Up = Jump • Down = Duck • Tap to jump (mobile)</p>
-    </div>
+  <h1>Hog Rider Runner ⚔️</h1>
+
+  <div id="ui">
+    <button id="startBtn">Start Game</button>
+    <button id="muteBtn">🔊</button>
+    <p id="score">Score: 0 • High: 0</p>
+    <p>Space / Up = Jump • Down = Duck • Tap to jump (mobile)</p>
   </div>
 
-  <div id="game-wrap">
-    <canvas id="gameCanvas" width="960" height="360"></canvas>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
   </div>
 
-  <div id="overlay" class="overlay">
-    <div id="overlayContent"></div>
+  <div id="ending" style="display:none;">
+    <h2>💥 Rocket Crash! Clash Base Destroyed! 💥</h2>
+    <p>You survived the war... but the base is gone.</p>
+    <button onclick="location.reload()">Play Again</button>
   </div>
 
   <script src="game.js"></script>
