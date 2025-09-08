@@ -1,31 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hog Rider Runner ⚔️</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hog Rider Runner — Single File Test</title>
+<style>
+  :root{--bg:#111;--panel:#222;--accent:#d9b08c}
+  html,body{height:100%;margin:0;background:linear-gradient(#0b0b0b,#141416);color:#fff;font-family:Arial,Helvetica,sans-serif}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;max-width:1000px;margin:10px auto}
+  h1{margin:0;font-size:20px;color:var(--accent)}
+  .controls{display:flex;gap:8px;align-items:center}
+  button{background:var(--panel);color:#fff;border:1px solid #333;padding:8px 10px;border-radius:6px;cursor:pointer}
+  #game-area{display:flex;justify-content:center;align-items:center;padding:12px;max-width:1000px;margin:0 auto}
+  canvas{width:960px;max-width:96vw;height:auto;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);background:#4a4a4a}
+  #hud{max-width:1000px;margin:8px auto;text-align:center;font-size:15px}
+  #overlay{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  #overlayBox{pointer-events:auto;background:rgba(8,8,8,0.9);padding:18px;border-radius:10px;border:1px solid #333;display:none;color:#fff;max-width:520px;text-align:center}
+  #overlayBox button{margin-top:12px}
+  @media (max-width:600px){h1{font-size:18px}}
+</style>
 </head>
 <body>
-  <h1>Hog Rider Runner ⚔️</h1>
-
-  <div id="ui">
-    <button id="startBtn">Start Game</button>
-    <button id="muteBtn">🔊</button>
-    <p id="score">Score: 0 • High: 0</p>
-    <p>Space / Up = Jump • Down = Duck • Tap to jump (mobile)</p>
+  <div class="top">
+    <h1>Hog Rider Runner ⚔️</h1>
+    <div class="controls">
+      <button id="startBtn">Start Game</button>
+      <button id="pauseBtn" style="display:none">Pause</button>
+      <button id="muteBtn">🔊</button>
+    </div>
   </div>
 
-  <div id="game-container">
+  <div id="game-area">
     <canvas id="gameCanvas"></canvas>
   </div>
 
-  <div id="ending" style="display:none;">
-    <h2>💥 Rocket Crash! Clash Base Destroyed! 💥</h2>
-    <p>You survived the war... but the base is gone.</p>
-    <button onclick="location.reload()">Play Again</button>
+  <div id="hud">
+    <div id="scoreText">Score: 0 • High: 0</div>
+    <div style="margin-top:8px;font-size:13px;color:#ddd">Space / Up / W = Jump • Down / S = Duck • Click / Tap canvas to jump</div>
   </div>
 
-  <script src="game.js"></script>
+  <div id="overlay">
+    <div id="overlayBox">
+      <h2 id="overlayTitle">Hog Rider Runner</h2>
+      <p id="overlayDesc">Press Start to run. Reach <strong>1000</strong> points to trigger the rocket ending.</p>
+      <button id="overlayStart">Begin</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  console.log('Hog Rider Runner single-file loaded');
+  // Canvas setup
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const WIDTH = (canvas.width = 960);
+  const HEIGHT = (canvas.height = 360);
+
+  // UI
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const scoreText = document.getElementById('scoreText');
+  const overlay = document.getElementById('overlayBox');
+  const overlayStart = document.getElementById('overlayStart');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayDesc = document.getElementById('overlayDesc');
+
+  // Game state
+  let running = false;
+  let paused = false;
+  let lastTS = 0;
+  let spawnTimer = 0;
+  let spawnInterval = 1200;
+  let obstacles = [];
+  let particles = [];
+  let score = 0;
+  let high = Number(localStorage.getItem('hr_high') || 0);
+  let rocketSequence = false;
+
+  scoreText.textContent = `Score: 0 • High: ${high}`;
+
+  // Player
+  const groundY = HEIGHT - 80;
+  const player = {
+    x: 84,
+    y: groundY,
+    w: 64,
+    h: 48,
+    vy: 0,
+    jumping: false,
+    ducking: false,
+    jumpPower: -14,
+    shield: false,
+    update(dt){
+      // vertical physics
+      this.vy += 0.8 * (dt/16);
+      this.y += this.vy * (dt/16);
+      if (this.y >= groundY) {
+        this.y = groundY; this.vy = 0; this.jumping = false;
+      }
+    },
+    draw(ctx){
+      // small shadow
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(this.x + this.w/2, this.y + this.h + 6, this.w*0.55, 8, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      // hog (stylized rectangle + rider)
+      ctx.fillStyle = '#b86c45';
+      ctx.fillRect(this.x, this.y, this.w, this.h);
+
+      // rider head
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(this.x + this.w - 12, this.y + 12, 8, 0, Math.PI*2);
+      ctx.fill();
+
+      // spear
+      ctx.strokeStyle = '#d6c07a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(this.x + this.w - 2, this.y + 8);
+      ctx.lineTo(this.x + this.w + 34, this.y - 6);
+      ctx.stroke();
+
+      ctx.restore();
+    },
+    bounds(){ return {x:this.x+6, y:this.y+6, w:this.w-12, h:this.h-10}; }
+  };
+
+  // Controls
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if ((e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') && !player.jumping) {
+      player.vy = player.jumpPower; player.jumping = true;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') player.ducking = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') player.ducking = false;
+  });
+
+  // Mouse / touch controls
+  canvas.addEventListener('mousedown', (e) => {
+    if (!running) startGame();
+    if (!player.jumping) { player.vy = player.jumpPower; player.jumping = true; }
+  });
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!running) startGame();
+    if (!player.jumping) { player.vy = player.jumpPower; player.jumping = true; }
+  }, {passive:false});
+
+  // Obstacles
+  class Obstacle {
+    constructor(speed) {
+      this.w = 36 + Math.random()*32;
+      this.h = 44 + Math.random()*20;
+      this.x = WIDTH + 20;
+      this.y = groundY + (player.h - this.h); // align to ground
+      this.speed = speed;
+      this.passed = false;
+    }
+    update(dt){
+      this.x -= this.speed * (dt/16);
+    }
+    draw(ctx){
+      ctx.save();
+      // shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(this.x+4, this.y + this.h - 8, this.w-6, 6);
+      // body (barbarian)
+      ctx.fillStyle = '#c07a40';
+      ctx.fillRect(this.x, this.y, this.w, this.h);
+      // helmet
+      ctx.fillStyle = '#a6a6a6';
+      ctx.fillRect(this.x + 6, this.y - 8, this.w - 12, 8);
+      // weapon
+      ctx.strokeStyle = '#6b3b2a';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(this.x + this.w - 6, this.y + this.h/2);
+      ctx.lineTo(this.x + this.w + 10, this.y + this.h/2 - 10);
+      ctx.stroke();
+      ctx.restore();
+    }
+    bounds(){ return {x:this.x, y:this.y, w:this.w, h:this.h}; }
+  }
+
+  // Simple AABB collision
+  function collides(a,b){
+    return !(a.x + a.w < b.x || a.x > b.x + b.w || a.y + a.h < b.y || a.y > b.y + b.h);
+  }
+
+  // Particles (for explosion)
+  function spawnParticles(x,y,count=30) {
+    for (let i=0;i<count;i++){
+      particles.push({
+        x,y,
+        vx:(Math.random()-0.5)*6,
+        vy:(Math.random()-1.5)*6,
+        life:60 + Math.random()*80,
+        size:2 + Math.random()*4,
+        color: ['#ffcf5c','#ff6f3c','#ff3c3c'][Math.floor(Math.random()*3)]
+      });
+    }
+  }
+
+  // Rocket cinematic
+  const rocket = {
+    active:false, x:WIDTH+40, y:-60, vx:-10, vy:3, targetX: WIDTH - 200, targetY: groundY - 20,
+    launch(){
+      this.active = true;
+      this.x = WIDTH + 80; this.y = -100; this.vx = -10; this.vy = 4;
+    },
+    update(dt){
+      if (!this.active) return;
+      // small homing toward target (for visual)
+      const ax = (this.targetX - this.x) * 0.001;
+      const ay = (this.targetY - this.y) * 0.001;
+      this.vx += ax * (dt/16);
+      this.vy += ay * (dt/16);
+      this.x += this.vx * (dt/16);
+      this.y += this.vy * (dt/16);
+      // trail
+      particles.push({x:this.x+6, y:this.y+8, vx:(Math.random()-0.5)*1, vy:Math.random()*1+0.6, life:20+Math.random()*20, size:2, color:'#ff8d3c'});
+      // detect impact
+      if (this.x < this.targetX + 6 && this.y > this.targetY - 6) {
+        this.active = false;
+        spawnParticles(this.targetX, this.targetY, 120);
+        // show victory ending
+        running = false;
+        showOverlay(true);
+      }
+    },
+    draw(ctx){
+      if (!this.active) return;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(Math.atan2(this.vy, this.vx));
+      ctx.fillStyle = '#ddd';
+      ctx.fillRect(-10, -6, 24, 12);
+      ctx.fillStyle = '#c33';
+      ctx.beginPath();
+      ctx.moveTo(14, 0); ctx.lineTo(22, 6); ctx.lineTo(22, -6); ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+
+  // Draw frame
+  function draw(t) {
+    // background
+    const g = ctx.createLinearGradient(0,0,0,HEIGHT);
+    g.addColorStop(0,'#4a4a4a'); g.addColorStop(0.6,'#333'); g.addColorStop(1,'#151516');
+    ctx.fillStyle = g; ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+    // clouds (simple)
+    for (let i=0;i<5;i++){
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.ellipse((t*0.02 + i*170) % (WIDTH+200) - 120, 40 + (i*10), 60, 18, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#bfbfbf'; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ground
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, HEIGHT-20, WIDTH, 20);
+
+    // castle/base on right (target)
+    ctx.save();
+    ctx.fillStyle = '#222';
+    ctx.fillRect(WIDTH - 260, HEIGHT-92, 220, 72);
+    ctx.fillStyle = '#111';
+    for (let i=0;i<6;i++) ctx.fillRect(WIDTH - 260 + i*34, HEIGHT-104, 20, 12);
+    ctx.fillStyle = '#b22222';
+    ctx.beginPath();
+    ctx.moveTo(WIDTH - 60, HEIGHT-110); ctx.lineTo(WIDTH - 40, HEIGHT-114); ctx.lineTo(WIDTH - 60, HEIGHT-98); ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // obstacles
+    for (let ob of obstacles) ob.draw(ctx);
+
+    // player
+    player.draw(ctx);
+
+    // rocket + particles
+    rocket.draw(ctx);
+    for (let i = particles.length -1; i>=0; i--){
+      const p = particles[i];
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life -= 1;
+      if (p.life <= 0) particles.splice(i,1);
+    }
+
+    // HUD on canvas
+    ctx.fillStyle = '#fff'; ctx.font = '18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${Math.floor(score)}`, 14, 26);
+  }
+
+  // Update game state
+  function update(dt, ts) {
+    if (!running) return;
+    // difficulty scale
+    const difficulty = 1 + Math.min(2.5, score / 800);
+    const speed = 4 * difficulty;
+
+    // player physics
+    player.update(dt);
+
+    // spawn obstacles
+    spawnTimer += dt;
+    if (spawnTimer > spawnInterval / difficulty) {
+      spawnTimer = 0;
+      obstacles.push(new Obstacle(speed + 1 + Math.random()*1.6));
+      // occasionally decrease spawnInterval
+      spawnInterval = Math.max(500, 1200 - score/1.8);
+    }
+
+    // update obstacles & collisions
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.update(dt);
+      if (o.x + o.w < -40) obstacles.splice(i,1);
+      else {
+        if (collides(player.bounds(), o.bounds())) {
+          // if player has shield (not implemented visible) consume else game over
+          if (player.shield) {
+            player.shield = false;
+            obstacles.splice(i,1);
+            spawnParticles(o.x + o.w/2, o.y + o.h/2, 18);
+          } else {
+            running = false;
+            showOverlay(false);
+            return;
+          }
+        }
+        // scoring when passing obstacle
+        if (!o.passed && o.x + o.w < player.x) {
+          o.passed = true;
+          score += 25;
+          // store highscore
+          if (Math.floor(score) > high) { high = Math.floor(score); localStorage.setItem('hr_high', high); }
+        }
+      }
+    }
+
+    // rocket trigger when score reaches threshold
+    if (Math.floor(score) >= 1000 && !rocketSequence) {
+      rocketSequence = true;
+      // small delay for drama, then launch rocket
+      setTimeout(()=>rocket.launch(), 1200);
+    }
+
+    rocket.update(dt);
+
+    // progress score slowly over time
+    score += 0.02 * (dt/16) * (1 + difficulty*0.2);
+
+    // clean particles (done in draw)
+  }
+
+  // Game loop
+  function loop(ts) {
+    if (!running) return;
+    const dt = lastTS ? Math.min(40, ts - lastTS) : 16;
+    lastTS = ts;
+    if (!paused) {
+      update(dt, ts);
+      ctx.clearRect(0,0,WIDTH,HEIGHT);
+      draw(ts);
+    }
+    // update DOM scoreboard
+    scoreText.textContent = `Score: ${Math.floor(score)} • High: ${high}`;
+    requestAnimationFrame(loop);
+  }
+
+  // Start / Pause / End behavior
+  function startGame(){
+    // reset state
+    obstacles = []; particles = [];
+    score = 0; spawnTimer = 0; spawnInterval = 1200;
+    player.y = groundY; player.vy = 0; player.jumping = false; player.shield = false;
+    rocket.active = false; rocketSequence = false;
+    running = true; paused = false; lastTS = 0;
+    overlay.style.display = 'none';
+    startBtn.style.display = 'none';
+    pauseBtn.style.display = 'inline-block';
+    requestAnimationFrame(loop);
+  }
+
+  function showOverlay(victory = false){
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+    overlayTitle.textContent = victory ? 'Victory! Rocket impact!' : 'Defeated';
+    overlayDesc.innerHTML = victory ? `The rocket crushed the base! Final score: <strong>${Math.floor(score)}</strong>` :
+      `You were stopped by barbarians. Final score: <strong>${Math.floor(score)}</strong>`;
+    overlayStart.textContent = 'Play Again';
+    startBtn.style.display = 'inline-block';
+    pauseBtn.style.display = 'none';
+    // ensure high stored
+    if (Math.floor(score) > high) {
+      high = Math.floor(score);
+      localStorage.setItem('hr_high', high);
+    }
+    // show overlay box
+    overlay.style.pointerEvents = 'auto';
+  }
+
+  // Hook up UI
+  startBtn.addEventListener('click', () => {
+    startGame();
+  });
+  overlayStart.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    startGame();
+  });
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+  });
+  muteBtn.addEventListener('click', () => {
+    // easy toggle, no sound in this single-file demo
+    muteBtn.textContent = muteBtn.textContent === '🔊' ? '🔇' : '🔊';
+  });
+
+  // If you want to inspect what's happening:
+  // open DevTools (F12) -> Console and look for "Hog Rider Runner single-file loaded".
+  // If nothing shows up after you open the file, make sure:
+  //  - the file is saved as .html
+  //  - you opened that file in the browser (double-click), not a different file
+  //  - press Ctrl+F5 to hard refresh cached files
+  overlay.style.display = 'block';
+})();
+</script>
 </body>
 </html>
