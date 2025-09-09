@@ -3,16 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Hog Rider Runner — Ultimate</title>
+<title>Hog Rider Runner — Ultimate Clash Edition</title>
 <style>
-/* --- Global Styles --- */
 body { margin:0; font-family:Arial,sans-serif; background:#121212; color:#eee; overflow:hidden; }
-button { font-family:inherit; font-size:14px; cursor:pointer; }
 .top { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#1c1c1c; border-bottom:2px solid #333; }
-.controls button { margin-left:10px; padding:6px 12px; background:#333; color:#eee; border:1px solid #555; border-radius:4px; }
+.controls button { margin-left:10px; padding:6px 12px; background:#333; color:#eee; border:1px solid #555; border-radius:4px; cursor:pointer; }
 .controls button:hover { background:#444; }
 #game-area { text-align:center; margin-top:0; }
-canvas { background:#111; border:2px solid #555; border-radius:6px; display:block; margin:0 auto; }
+canvas { display:block; margin:0 auto; border:2px solid #555; }
 #hud { text-align:center; margin-top:10px; }
 #scoreText { font-weight:bold; margin-bottom:4px; }
 #tips { font-size:12px; color:#bbb; }
@@ -27,7 +25,7 @@ canvas { background:#111; border:2px solid #555; border-radius:6px; display:bloc
 <body>
 
 <div class="top">
-  <h1>Hog Rider Runner ⚔️ — Ultimate</h1>
+  <h1>Hog Rider Runner ⚔️ — Ultimate Clash Edition</h1>
   <div class="controls">
     <button id="startBtn">Start</button>
     <button id="pauseBtn" style="display:none">Pause</button>
@@ -47,7 +45,7 @@ canvas { background:#111; border:2px solid #555; border-radius:6px; display:bloc
 <div id="overlay" class="overlay">
   <div id="overlayBox">
     <h2>Hog Rider Runner</h2>
-    <p>Run through the battlefield with Hograders. Multiple enemies, power-ups, boss wave, and cinematic rocket ending. Reach <strong>1200</strong> for boss; <strong>2000</strong> for rocket.</p>
+    <p>Run through the battlefield with Hograders. Multiple enemies, power-ups, boss wave, and cinematic rocket ending at 2000 points.</p>
     <div class="overlay-buttons">
       <button id="overlayStart">Begin</button>
     </div>
@@ -55,7 +53,7 @@ canvas { background:#111; border:2px solid #555; border-radius:6px; display:bloc
 </div>
 
 <script>
-// --- Canvas & context ---
+// --- Canvas ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -69,11 +67,31 @@ const muteBtn = document.getElementById('muteBtn');
 let isRunning=false, score=0, highScore=0, frameCount=0;
 let bossActive=false, rocketLaunched=false, bgX=0, musicPlaying=true;
 
-// --- Player (Hograder) ---
-const player = { x:50, y:canvas.height-60, width:40, height:40, color:'#ffcc00', dy:0, gravity:0.7, jumpPower:-12, grounded:true };
+// --- Player ---
+const player = { x:50, y:canvas.height-80, width:50, height:50, dy:0, gravity:0.7, jumpPower:-12, grounded:true };
+const playerImg = new Image();
+playerImg.src = 'https://i.imgur.com/W3e7FqE.png'; // Hog Rider sprite
 
-// --- Arrays ---
-const enemies = [], powerUps = [];
+// --- Enemies ---
+const enemies = [];
+const enemyImgs = [
+  'https://i.imgur.com/4bF8qV6.png', // Barbarian
+  'https://i.imgur.com/L2hEx6x.png', // Archer
+  'https://i.imgur.com/BvNYf9R.png'  // Giant
+];
+
+// --- Background ---
+const bgImg = new Image();
+bgImg.src = 'https://i.imgur.com/8gkQkDm.jpg'; // Clash battlefield
+
+// --- Rocket ---
+const rocketImg = new Image();
+rocketImg.src = 'https://i.imgur.com/7ou2x6R.png';
+
+// --- Power-ups ---
+const powerUps = [];
+const powerImg = new Image();
+powerImg.src = 'https://i.imgur.com/m2NQnEb.png'; // coin
 
 // --- Sounds ---
 const jumpSound = new Audio('https://freesound.org/data/previews/66/66717_931655-lq.mp3');
@@ -83,10 +101,10 @@ const bgMusic = new Audio('https://freesound.org/data/previews/458/458712_512123
 bgMusic.loop = true;
 
 // --- Input ---
-document.addEventListener('keydown',e=>{if(['Space','ArrowUp'].includes(e.code)||e.key.toLowerCase()==='w') jump();});
+document.addEventListener('keydown', e => { if(['Space','ArrowUp'].includes(e.code) || e.key.toLowerCase()==='w') jump(); });
 canvas.addEventListener('click', jump);
 
-function jump(){ if(player.grounded){ player.dy=player.jumpPower; player.grounded=false; jumpSound.play(); }}
+function jump(){ if(player.grounded){ player.dy=player.jumpPower; player.grounded=false; jumpSound.play(); } }
 
 // --- Start / Pause ---
 startBtn.onclick=startGame;
@@ -103,32 +121,40 @@ function startGame(){
 }
 
 function spawnEnemy(){
-  const type=Math.random();
-  if(type<0.5) enemies.push({x:canvas.width,y:canvas.height-40,width:30,height:30,color:'#ff4444',speed:5});
-  else if(type<0.8) enemies.push({x:canvas.width,y:canvas.height-50,width:20,height:20,color:'#ff8800',speed:8});
-  else enemies.push({x:canvas.width,y:canvas.height-60,width:25,height:50,color:'#cc33ff',speed:4});
+  const type = Math.floor(Math.random()*enemyImgs.length);
+  enemies.push({x:canvas.width, y:canvas.height-70, width:50, height:50, speed:4+Math.random()*3, img:type});
 }
 
-function spawnPowerUp(){ powerUps.push({x:canvas.width, y:canvas.height-60, width:20, height:20, color:'#00ffcc', speed:5}); }
+function spawnPowerUp(){
+  powerUps.push({x:canvas.width, y:canvas.height-70, width:30, height:30, speed:4});
+}
 
 function drawBackground(){
   bgX-=2;
   if(bgX<=-canvas.width) bgX=0;
-  ctx.fillStyle='#222';
-  ctx.fillRect(bgX,0,canvas.width,canvas.height);
-  ctx.fillRect(bgX+canvas.width,0,canvas.width,canvas.height);
+  ctx.drawImage(bgImg, bgX,0,canvas.width,canvas.height);
+  ctx.drawImage(bgImg, bgX+canvas.width,0,canvas.width,canvas.height);
 }
 
+// --- Rocket Animation ---
+function drawRocket(){
+  const rocketY = canvas.height - 100 - (frameCount-2000);
+  if(rocketY> -100) ctx.drawImage(rocketImg, canvas.width-100, rocketY, 50,100);
+}
+
+// --- Main Loop ---
 function gameLoop(){
   if(!isRunning) return;
   frameCount++;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
   drawBackground();
 
   // --- Player ---
-  player.dy+=player.gravity;
-  player.y+=player.dy;
-  if(player.y+player.height>=canvas.height-10){ player.y=canvas.height-10-player.height; player.dy=0; player.grounded=true; }
-  ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.width,player.height);
+  player.dy += player.gravity;
+  player.y += player.dy;
+  if(player.y+player.height >= canvas.height-10){ player.y=canvas.height-10-player.height; player.dy=0; player.grounded=true; }
+  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
 
   // --- Spawn ---
   if(frameCount%90===0 && !bossActive) spawnEnemy();
@@ -136,33 +162,40 @@ function gameLoop(){
 
   // --- Update enemies ---
   for(let i=enemies.length-1;i>=0;i--){
-    const e=enemies[i]; e.x-=e.speed;
-    ctx.fillStyle=e.color; ctx.fillRect(e.x,e.y,e.width,e.height);
-    if(player.x<e.x+e.width && player.x+player.width>e.x && player.y<e.y+e.height && player.y+player.height>e.y){ hitSound.play(); gameOver(); return; }
+    const e=enemies[i]; e.x -= e.speed;
+    ctx.drawImage(new Image(), e.x,e.y,e.width,e.height);
+    let img = new Image();
+    img.src = enemyImgs[e.img];
+    ctx.drawImage(img,e.x,e.y,e.width,e.height);
+    if(player.x<e.x+e.width && player.x+player.width>e.x && player.y<e.y+e.height && player.y+player.height>e.y){
+      hitSound.play(); gameOver(); return;
+    }
     if(e.x+e.width<0) enemies.splice(i,1);
   }
 
   // --- Update power-ups ---
   for(let i=powerUps.length-1;i>=0;i--){
     const p=powerUps[i]; p.x-=p.speed;
-    ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.width,p.height);
-    if(player.x<p.x+p.width && player.x+player.width>p.x && player.y<p.y+p.height && player.y+player.height>p.y){ score+=50; powerSound.play(); powerUps.splice(i,1); }
+    ctx.drawImage(powerImg, p.x,p.y,p.width,p.height);
+    if(player.x<p.x+p.width && player.x+player.width>p.x && player.y<p.y+p.height && player.y+player.height>p.y){
+      score+=50; powerSound.play(); powerUps.splice(i,1);
+    }
     if(p.x+p.width<0) powerUps.splice(i,1);
   }
 
   // --- Boss ---
   if(score>=1200 && !bossActive){
     bossActive=true;
-    enemies.push({x:canvas.width, y:canvas.height-80, width:60, height:60, color:'#ff0000', speed:3, isBoss:true});
+    enemies.push({x:canvas.width, y:canvas.height-70, width:70, height:70, speed:3, img:2});
     alert('Boss wave!');
   }
 
   // --- Rocket ending ---
   if(score>=2000 && !rocketLaunched){
     rocketLaunched=true;
-    alert('Rocket launched! You win!');
-    isRunning=false; startBtn.style.display='inline'; pauseBtn.style.display='none';
+    alert('Rocket launched! Watch the cinematic!');
   }
+  if(rocketLaunched) drawRocket();
 
   // --- Score ---
   score++; if(score>highScore) highScore=score;
@@ -171,7 +204,7 @@ function gameLoop(){
   requestAnimationFrame(gameLoop);
 }
 
-function gameOver(){ isRunning=false; startBtn.style.display='inline'; pauseBtn.style.display='none'; alert(`Game Over! Your score: ${score}`); }
+function gameOver(){ isRunning=false; startBtn.style.display='inline'; pauseBtn.style.display='none'; alert(`Game Over! Score: ${score}`);}
 </script>
 </body>
 </html>
