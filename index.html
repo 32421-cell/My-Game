@@ -1,210 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Hog Rider Runner — Ultimate Clash Edition</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Epic Cutscene</title>
 <style>
-body { margin:0; font-family:Arial,sans-serif; background:#121212; color:#eee; overflow:hidden; }
-.top { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#1c1c1c; border-bottom:2px solid #333; }
-.controls button { margin-left:10px; padding:6px 12px; background:#333; color:#eee; border:1px solid #555; border-radius:4px; cursor:pointer; }
-.controls button:hover { background:#444; }
-#game-area { text-align:center; margin-top:0; }
-canvas { display:block; margin:0 auto; border:2px solid #555; }
-#hud { text-align:center; margin-top:10px; }
-#scoreText { font-weight:bold; margin-bottom:4px; }
-#tips { font-size:12px; color:#bbb; }
-.overlay { display:flex; justify-content:center; align-items:center; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; }
-#overlayBox { background:#222; padding:25px 20px; border-radius:12px; text-align:center; max-width:400px; width:90%; border:2px solid #555; }
-#overlayBox h2 { margin-top:0; margin-bottom:10px; }
-#overlayBox p { font-size:14px; color:#ccc; line-height:1.4; margin-bottom:15px; }
-.overlay-buttons button { padding:8px 20px; border-radius:5px; border:1px solid #555; background:#333; color:#eee; }
-.overlay-buttons button:hover { background:#444; }
+  body { margin:0; overflow:hidden; background:#000; }
+  canvas { display:block; margin:0 auto; background:#111; }
+  button { position:fixed; top:10px; right:10px; font-size:16px; z-index:10; }
 </style>
 </head>
 <body>
-
-<div class="top">
-  <h1>Hog Rider Runner ⚔️ — Ultimate Clash Edition</h1>
-  <div class="controls">
-    <button id="startBtn">Start</button>
-    <button id="pauseBtn" style="display:none">Pause</button>
-    <button id="muteBtn">🔊</button>
-  </div>
-</div>
-
-<div id="game-area">
-  <canvas id="gameCanvas" width="960" height="360"></canvas>
-</div>
-
-<div id="hud">
-  <div id="scoreText">Score: 0 • High: 0</div>
-  <div id="tips">Space / Up / W = Jump • Click / Tap canvas to jump</div>
-</div>
-
-<div id="overlay" class="overlay">
-  <div id="overlayBox">
-    <h2>Hog Rider Runner</h2>
-    <p>Run through the battlefield with Hograders. Multiple enemies, power-ups, boss wave, and cinematic rocket ending at 2000 points.</p>
-    <div class="overlay-buttons">
-      <button id="overlayStart">Begin</button>
-    </div>
-  </div>
-</div>
-
+<button id="startBtn">Start Cutscene</button>
+<canvas id="canvas" width="900" height="500"></canvas>
 <script>
-// --- Canvas ---
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
 
-// --- Controls ---
 const startBtn = document.getElementById('startBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const overlayStart = document.getElementById('overlayStart');
-const muteBtn = document.getElementById('muteBtn');
+let state = 'menu';
+let time = 0;
 
-// --- Game state ---
-let isRunning=false, score=0, highScore=0, frameCount=0;
-let bossActive=false, rocketLaunched=false, bgX=0, musicPlaying=true;
+// Player hero rectangle
+const player = { x:400, y:H-120, w:40, h:40, glow:0, bob:0 };
 
-// --- Player ---
-const player = { x:50, y:canvas.height-80, width:50, height:50, dy:0, gravity:0.7, jumpPower:-12, grounded:true };
-const playerImg = new Image();
-playerImg.src = 'https://i.imgur.com/W3e7FqE.png'; // Hog Rider sprite
+// Effects arrays
+let meteors = [];
+let explosions = [];
+let shadowTendrils = [];
+let particles = [];
+let embers = [];
+let flash = 0;
+let cameraShake = 0;
+let slowMo = 1;
 
-// --- Enemies ---
-const enemies = [];
-const enemyImgs = [
-  'https://i.imgur.com/4bF8qV6.png', // Barbarian
-  'https://i.imgur.com/L2hEx6x.png', // Archer
-  'https://i.imgur.com/BvNYf9R.png'  // Giant
-];
+// Helpers
+function rand(a,b){ return Math.random()*(b-a)+a; }
+function createMeteor(){ meteors.push({x:rand(0,W), y:-50, vx:rand(-1.5,1.5), vy:rand(6,10), size:10+rand(0,10)}); }
+function createExplosion(x,y){ explosions.push({x,y,radius:0,max:30+rand(0,30)}); }
+function createTendril(){ shadowTendrils.push({x:rand(0,W), y:H, vy:-rand(1.5,3), length:rand(50,150), bend:rand(-0.3,0.3)}); }
+function createParticle(x,y){ particles.push({x,y,vx:rand(-1,1),vy:rand(-3,-1),size:2+rand(0,2),life:rand(30,60)}); }
+function createEmber(x,y){ embers.push({x,y,vx:rand(-0.5,0.5),vy:rand(-1.2,-0.3),size:2+rand(0,2),life:rand(100,200)}); }
 
-// --- Background ---
-const bgImg = new Image();
-bgImg.src = 'https://i.imgur.com/8gkQkDm.jpg'; // Clash battlefield
+// Update
+let lastTime = performance.now();
+function update(dt){
+  dt/=16.67*slowMo; time+=dt;
 
-// --- Rocket ---
-const rocketImg = new Image();
-rocketImg.src = 'https://i.imgur.com/7ou2x6R.png';
-
-// --- Power-ups ---
-const powerUps = [];
-const powerImg = new Image();
-powerImg.src = 'https://i.imgur.com/m2NQnEb.png'; // coin
-
-// --- Sounds ---
-const jumpSound = new Audio('https://freesound.org/data/previews/66/66717_931655-lq.mp3');
-const hitSound = new Audio('https://freesound.org/data/previews/353/353841_5121236-lq.mp3');
-const powerSound = new Audio('https://freesound.org/data/previews/109/109662_945474-lq.mp3');
-const bgMusic = new Audio('https://freesound.org/data/previews/458/458712_5121236-lq.mp3');
-bgMusic.loop = true;
-
-// --- Input ---
-document.addEventListener('keydown', e => { if(['Space','ArrowUp'].includes(e.code) || e.key.toLowerCase()==='w') jump(); });
-canvas.addEventListener('click', jump);
-
-function jump(){ if(player.grounded){ player.dy=player.jumpPower; player.grounded=false; jumpSound.play(); } }
-
-// --- Start / Pause ---
-startBtn.onclick=startGame;
-overlayStart.onclick=()=>{ document.getElementById('overlay').style.display='none'; startGame(); };
-pauseBtn.onclick=()=>{ isRunning=!isRunning; pauseBtn.innerText=isRunning?'Pause':'Resume'; if(isRunning) requestAnimationFrame(gameLoop); };
-muteBtn.onclick=()=>{ musicPlaying=!musicPlaying; if(musicPlaying){ bgMusic.play(); muteBtn.innerText='🔊'; } else{ bgMusic.pause(); muteBtn.innerText='🔇'; }};
-
-// --- Game Functions ---
-function startGame(){
-  isRunning=true; score=0; frameCount=0; enemies.length=0; powerUps.length=0; bossActive=false; rocketLaunched=false; bgX=0;
-  startBtn.style.display='none'; pauseBtn.style.display='inline';
-  if(musicPlaying) bgMusic.play();
-  requestAnimationFrame(gameLoop);
-}
-
-function spawnEnemy(){
-  const type = Math.floor(Math.random()*enemyImgs.length);
-  enemies.push({x:canvas.width, y:canvas.height-70, width:50, height:50, speed:4+Math.random()*3, img:type});
-}
-
-function spawnPowerUp(){
-  powerUps.push({x:canvas.width, y:canvas.height-70, width:30, height:30, speed:4});
-}
-
-function drawBackground(){
-  bgX-=2;
-  if(bgX<=-canvas.width) bgX=0;
-  ctx.drawImage(bgImg, bgX,0,canvas.width,canvas.height);
-  ctx.drawImage(bgImg, bgX+canvas.width,0,canvas.width,canvas.height);
-}
-
-// --- Rocket Animation ---
-function drawRocket(){
-  const rocketY = canvas.height - 100 - (frameCount-2000);
-  if(rocketY> -100) ctx.drawImage(rocketImg, canvas.width-100, rocketY, 50,100);
-}
-
-// --- Main Loop ---
-function gameLoop(){
-  if(!isRunning) return;
-  frameCount++;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  drawBackground();
-
-  // --- Player ---
-  player.dy += player.gravity;
-  player.y += player.dy;
-  if(player.y+player.height >= canvas.height-10){ player.y=canvas.height-10-player.height; player.dy=0; player.grounded=true; }
-  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
-
-  // --- Spawn ---
-  if(frameCount%90===0 && !bossActive) spawnEnemy();
-  if(frameCount%600===0 && !bossActive) spawnPowerUp();
-
-  // --- Update enemies ---
-  for(let i=enemies.length-1;i>=0;i--){
-    const e=enemies[i]; e.x -= e.speed;
-    ctx.drawImage(new Image(), e.x,e.y,e.width,e.height);
-    let img = new Image();
-    img.src = enemyImgs[e.img];
-    ctx.drawImage(img,e.x,e.y,e.width,e.height);
-    if(player.x<e.x+e.width && player.x+player.width>e.x && player.y<e.y+e.height && player.y+player.height>e.y){
-      hitSound.play(); gameOver(); return;
+  if(state==='cutscene'){
+    // Continuous meteors
+    if(Math.random()<0.3) createMeteor();
+    for(let i=meteors.length-1;i>=0;i--){
+      let m = meteors[i];
+      m.x+=m.vx*dt; m.y+=m.vy*dt;
+      if(m.y>H-50){ createExplosion(m.x,H-50); meteors.splice(i,1); flash=5; cameraShake=15; slowMo=0.5; setTimeout(()=>{slowMo=1;},500); }
     }
-    if(e.x+e.width<0) enemies.splice(i,1);
-  }
 
-  // --- Update power-ups ---
-  for(let i=powerUps.length-1;i>=0;i--){
-    const p=powerUps[i]; p.x-=p.speed;
-    ctx.drawImage(powerImg, p.x,p.y,p.width,p.height);
-    if(player.x<p.x+p.width && player.x+player.width>p.x && player.y<p.y+p.height && player.y+player.height>p.y){
-      score+=50; powerSound.play(); powerUps.splice(i,1);
+    // Explosions
+    for(let i=explosions.length-1;i>=0;i--){
+      let ex = explosions[i];
+      ex.radius+=2*dt;
+      if(Math.random()<0.5) createParticle(ex.x+rand(-20,20), ex.y+rand(-20,20));
+      if(ex.radius>ex.max) explosions.splice(i,1);
     }
-    if(p.x+p.width<0) powerUps.splice(i,1);
+
+    // Shadow tendrils
+    if(Math.random()<0.07) createTendril();
+    for(let i=shadowTendrils.length-1;i>=0;i--){
+      let t = shadowTendrils[i];
+      t.y += t.vy*dt;
+      t.x += Math.sin(time*0.1+t.bend)*0.5; // bending effect
+      if(t.y + t.length < 0) shadowTendrils.splice(i,1);
+    }
+
+    // Particles
+    for(let i=particles.length-1;i>=0;i--){
+      let p = particles[i];
+      p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt;
+      if(p.life<=0) particles.splice(i,1);
+    }
+
+    // Embers
+    if(Math.random()<0.5) createEmber(rand(0,W), H-10);
+    for(let i=embers.length-1;i>=0;i--){
+      let e = embers[i];
+      e.x+=e.vx*dt; e.y+=e.vy*dt; e.life-=dt;
+      if(e.life<=0) embers.splice(i,1);
+    }
+
+    // Glow & bob animation for player
+    player.glow = 0.5 + 0.5*Math.sin(time*0.05);
+    player.bob = 5*Math.sin(time*0.1);
+
+    // Flash & camera shake decay
+    if(flash>0) flash-=0.2*dt;
+    if(cameraShake>0) cameraShake-=0.5*dt;
+
+    // End scene after ~120 seconds
+    if(time>120){ state='end'; }
   }
-
-  // --- Boss ---
-  if(score>=1200 && !bossActive){
-    bossActive=true;
-    enemies.push({x:canvas.width, y:canvas.height-70, width:70, height:70, speed:3, img:2});
-    alert('Boss wave!');
-  }
-
-  // --- Rocket ending ---
-  if(score>=2000 && !rocketLaunched){
-    rocketLaunched=true;
-    alert('Rocket launched! Watch the cinematic!');
-  }
-  if(rocketLaunched) drawRocket();
-
-  // --- Score ---
-  score++; if(score>highScore) highScore=score;
-  document.getElementById('scoreText').innerText=`Score: ${score} • High: ${highScore}`;
-
-  requestAnimationFrame(gameLoop);
 }
 
-function gameOver(){ isRunning=false; startBtn.style.display='inline'; pauseBtn.style.display='none'; alert(`Game Over! Score: ${score}`);}
+// Draw
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // Camera shake
+  const shakeX = cameraShake*(Math.random()-0.5);
+  const shakeY = cameraShake*(Math.random()-0.5);
+  ctx.save();
+  ctx.translate(shakeX,shakeY);
+
+  // Background layers
+  let eclipseR = 180 + Math.sin(time*0.3)*40;
+  ctx.fillStyle = `rgb(${50+flash*40},0,0)`;
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='black';
+  ctx.beginPath();
+  ctx.arc(W/2,H/2,eclipseR,0,Math.PI*2);
+  ctx.fill();
+
+  // Midground mountains/ruins
+  ctx.fillStyle='rgba(30,30,30,0.7)';
+  for(let i=0;i<10;i++){ ctx.fillRect(i*80+rand(-5,5), H-50-10*rand(0,3), 50, 50+rand(0,20)); }
+
+  // Foreground debris (particles)
+  ctx.fillStyle='gray';
+  for(let p of particles){ ctx.globalAlpha = p.life/60; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
+
+  // Meteors
+  ctx.fillStyle='orange';
+  for(let m of meteors){ ctx.beginPath(); ctx.arc(m.x,m.y,m.size,0,Math.PI*2); ctx.fill(); }
+
+  // Explosions
+  for(let ex of explosions){
+    let grad = ctx.createRadialGradient(ex.x,ex.y,0,ex.x,ex.y,ex.radius);
+    grad.addColorStop(0,'yellow'); grad.addColorStop(0.5,'orange'); grad.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath(); ctx.arc(ex.x,ex.y,ex.radius,0,Math.PI*2); ctx.fill();
+  }
+
+  // Shadow tendrils
+  ctx.strokeStyle='purple'; ctx.lineWidth=4;
+  for(let t of shadowTendrils){ ctx.beginPath(); ctx.moveTo(t.x,t.y); ctx.lineTo(t.x,t.y+t.length); ctx.stroke(); }
+
+  // Embers
+  ctx.fillStyle='orange';
+  for(let e of embers){ ctx.globalAlpha = e.life/200; ctx.beginPath(); ctx.arc(e.x,e.y,e.size,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
+
+  // Player rectangle hero with glow and bobbing
+  if(state!=='end'){
+    ctx.save();
+    ctx.shadowColor = `rgba(255,255,255,${player.glow})`;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle='white';
+    ctx.fillRect(player.x,player.y+player.bob,player.w,player.h);
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // End screen
+  if(state==='end'){
+    ctx.fillStyle='rgba(0,0,0,0.85)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='white'; ctx.font='50px sans-serif';
+    ctx.fillText('THE SHADOW CONSUMES ALL', W/2-300,H/2);
+    ctx.font='28px sans-serif';
+    ctx.fillText('To Be Continued...', W/2-100,H/2+50);
+  }
+}
+
+// Loop
+function loop(now){
+  const dt = now-lastTime; lastTime=now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// Start cutscene
+startBtn.addEventListener('click', ()=>{
+  state='cutscene';
+  time=0;
+  meteors=[]; explosions=[]; shadowTendrils=[]; particles=[]; embers=[];
+  flash=0; cameraShake=0; slowMo=1;
+});
 </script>
 </body>
 </html>
