@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ultimate Epic Cutscene</title>
+<title>Ultimate AAA Cutscene</title>
 <style>
   body { margin:0; overflow:hidden; background:#000; }
   canvas { display:block; margin:0 auto; background:#111; }
@@ -11,8 +11,8 @@
 </style>
 </head>
 <body>
-<button id="startBtn">Start Cutscene</button>
-<canvas id="canvas" width="900" height="500"></canvas>
+<button id="startBtn">Start Ultimate Cutscene</button>
+<canvas id="canvas" width="1000" height="600"></canvas>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -22,18 +22,12 @@ const startBtn = document.getElementById('startBtn');
 let state = 'menu';
 let time = 0;
 
-// Player hero rectangle
-const player = { x:400, y:H-120, w:40, h:40, glow:0, bob:0 };
+// Player hero (placeholder)
+const player = { x:W/2-20, y:H-140, w:40, h:40, glow:0, bob:0 };
 
-// Effects arrays
-let meteors = [];
-let explosions = [];
-let shadowTendrils = [];
-let particles = [];
-let embers = [];
-let flash = 0;
-let cameraShake = 0;
-let slowMo = 1;
+// Effects
+let meteors = [], explosions = [], shadowTendrils = [], particles = [], embers = [];
+let flash = 0, cameraShake = 0, slowMo = 1;
 
 // Helpers
 function rand(a,b){ return Math.random()*(b-a)+a; }
@@ -54,7 +48,7 @@ function update(dt){
     for(let i=meteors.length-1;i>=0;i--){
       let m = meteors[i];
       m.x+=m.vx*dt; m.y+=m.vy*dt;
-      if(m.y>H-50){ createExplosion(m.x,H-50); meteors.splice(i,1); flash=5; cameraShake=15; slowMo=0.5; setTimeout(()=>{slowMo=1;},500); }
+      if(m.y>H-50){ createExplosion(m.x,H-50); meteors.splice(i,1); flash=5; cameraShake=15; slowMo=0.5; setTimeout(()=>{slowMo=1;},600); }
     }
 
     // Explosions
@@ -66,11 +60,11 @@ function update(dt){
     }
 
     // Shadow tendrils
-    if(Math.random()<0.07) createTendril();
+    if(Math.random()<0.08) createTendril();
     for(let i=shadowTendrils.length-1;i>=0;i--){
       let t = shadowTendrils[i];
       t.y += t.vy*dt;
-      t.x += Math.sin(time*0.1+t.bend)*0.5; // bending effect
+      t.x += Math.sin(time*0.1+t.bend)*0.5;
       if(t.y + t.length < 0) shadowTendrils.splice(i,1);
     }
 
@@ -89,16 +83,16 @@ function update(dt){
       if(e.life<=0) embers.splice(i,1);
     }
 
-    // Glow & bob animation for player
+    // Glow & bob
     player.glow = 0.5 + 0.5*Math.sin(time*0.05);
     player.bob = 5*Math.sin(time*0.1);
 
-    // Flash & camera shake decay
+    // Camera shake decay
     if(flash>0) flash-=0.2*dt;
     if(cameraShake>0) cameraShake-=0.5*dt;
 
-    // End scene after ~120 seconds
-    if(time>120){ state='end'; }
+    // End scene after ~240 seconds (4 minutes)
+    if(time>240){ state='end'; }
   }
 }
 
@@ -112,9 +106,9 @@ function draw(){
   ctx.save();
   ctx.translate(shakeX,shakeY);
 
-  // Background layers
-  let eclipseR = 180 + Math.sin(time*0.3)*40;
-  ctx.fillStyle = `rgb(${50+flash*40},0,0)`;
+  // Sky/Eclipse
+  let eclipseR = 200 + Math.sin(time*0.2)*50;
+  ctx.fillStyle = `rgb(${50+flash*40},0,${20+flash*20})`;
   ctx.fillRect(0,0,W,H);
   ctx.fillStyle='black';
   ctx.beginPath();
@@ -123,9 +117,9 @@ function draw(){
 
   // Midground mountains/ruins
   ctx.fillStyle='rgba(30,30,30,0.7)';
-  for(let i=0;i<10;i++){ ctx.fillRect(i*80+rand(-5,5), H-50-10*rand(0,3), 50, 50+rand(0,20)); }
+  for(let i=0;i<12;i++){ ctx.fillRect(i*80+rand(-5,5), H-50-10*rand(0,3), 50, 50+rand(0,30)); }
 
-  // Foreground debris (particles)
+  // Foreground debris particles
   ctx.fillStyle='gray';
   for(let p of particles){ ctx.globalAlpha = p.life/60; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); }
   ctx.globalAlpha=1;
@@ -151,7 +145,7 @@ function draw(){
   for(let e of embers){ ctx.globalAlpha = e.life/200; ctx.beginPath(); ctx.arc(e.x,e.y,e.size,0,Math.PI*2); ctx.fill(); }
   ctx.globalAlpha=1;
 
-  // Player rectangle hero with glow and bobbing
+  // Player
   if(state!=='end'){
     ctx.save();
     ctx.shadowColor = `rgba(255,255,255,${player.glow})`;
@@ -165,11 +159,11 @@ function draw(){
 
   // End screen
   if(state==='end'){
-    ctx.fillStyle='rgba(0,0,0,0.85)'; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='white'; ctx.font='50px sans-serif';
-    ctx.fillText('THE SHADOW CONSUMES ALL', W/2-300,H/2);
-    ctx.font='28px sans-serif';
-    ctx.fillText('To Be Continued...', W/2-100,H/2+50);
+    ctx.fillStyle='rgba(0,0,0,0.9)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='white'; ctx.font='60px sans-serif';
+    ctx.fillText('THE SHADOW CONSUMES ALL', W/2-350,H/2);
+    ctx.font='36px sans-serif';
+    ctx.fillText('To Be Continued...', W/2-140,H/2+60);
   }
 }
 
